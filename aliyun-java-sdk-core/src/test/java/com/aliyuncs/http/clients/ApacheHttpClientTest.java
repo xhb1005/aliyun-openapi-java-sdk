@@ -276,4 +276,62 @@ public class ApacheHttpClientTest {
         Assert.assertTrue(apacheHttpClient.syncInvoke(apiRequest) instanceof HttpResponse);
     }
 
+    @Test
+    public void testSyncInvokeNotNullHttpResponseEntityIsChunked() throws ClientException, IOException, NoSuchFieldException,
+            SecurityException, IllegalArgumentException, IllegalAccessException {
+        HttpClientConfig config = this.getMockHttpClientConfigWithFalseIgnoreSSLCerts();
+        ApacheHttpClient apacheHttpClient = new ApacheHttpClient(config);
+        HttpRequest apiRequest = this.getMockHttpRequest();
+        Mockito.when(apiRequest.getSysMethod()).thenReturn(MethodType.PUT);
+        Mockito.when(apiRequest.getHeaderValue(Mockito.anyString())).thenReturn("contentType");
+        CloseableHttpResponse closeableHttpResponse = this.getMockHttpResponse();
+        Mockito.when(closeableHttpResponse.getEntity().isChunked()).thenReturn(true);
+        Header contentTypeHeader = Mockito.mock(Header.class);
+        Mockito.when(contentTypeHeader.getValue()).thenReturn("value");
+        Mockito.when(closeableHttpResponse.getFirstHeader(Mockito.anyString())).thenReturn(contentTypeHeader);
+
+        Field httpClientReflect = ApacheHttpClient.class.getDeclaredField("httpClient");
+        httpClientReflect.setAccessible(true);
+        CloseableHttpClient closeableHttpClient = Mockito.mock(CloseableHttpClient.class);
+        httpClientReflect.set(apacheHttpClient, closeableHttpClient);
+        Mockito.doReturn(closeableHttpResponse).when(closeableHttpClient).execute(Mockito.any(HttpUriRequest.class));
+        Assert.assertTrue(apacheHttpClient.syncInvoke(apiRequest) instanceof HttpResponse);
+        apacheHttpClient.close();
+        Mockito.when(closeableHttpResponse.getFirstHeader(Mockito.anyString())).thenReturn(null);
+        HttpResponse response = apacheHttpClient.syncInvoke(apiRequest);
+        Assert.assertEquals(FormatType.JSON,response.getHttpContentType());
+        Assert.assertEquals("utf-8",response.getSysEncoding());
+    }
+
+    @Test
+    public void testSyncInvokeNotNullHttpResponseEntity() throws ClientException, IOException, NoSuchFieldException,
+            SecurityException, IllegalArgumentException, IllegalAccessException {
+        HttpClientConfig config = this.getMockHttpClientConfigWithFalseIgnoreSSLCerts();
+        ApacheHttpClient apacheHttpClient = new ApacheHttpClient(config);
+        HttpRequest apiRequest = this.getMockHttpRequest();
+        Mockito.when(apiRequest.getSysMethod()).thenReturn(MethodType.PUT);
+        Mockito.when(apiRequest.getHeaderValue(Mockito.anyString())).thenReturn("contentType");
+        CloseableHttpResponse closeableHttpResponse = this.getMockHttpResponse();
+        Mockito.when(closeableHttpResponse.getEntity().getContentLength()).thenReturn(1L);
+
+        Header contentTypeHeader = Mockito.mock(Header.class);
+        Mockito.when(contentTypeHeader.getValue()).thenReturn("value");
+        Mockito.when(closeableHttpResponse.getFirstHeader(Mockito.anyString())).thenReturn(contentTypeHeader);
+        PowerMockito.mockStatic(ContentType.class);
+        PowerMockito.when(ContentType.parse(Mockito.anyString())).thenReturn(ContentType.APPLICATION_JSON);
+        Field httpClientReflect = ApacheHttpClient.class.getDeclaredField("httpClient");
+        httpClientReflect.setAccessible(true);
+        CloseableHttpClient closeableHttpClient = Mockito.mock(CloseableHttpClient.class);
+        httpClientReflect.set(apacheHttpClient, closeableHttpClient);
+        Mockito.doReturn(closeableHttpResponse).when(closeableHttpClient).execute(Mockito.any(HttpUriRequest.class));
+        Assert.assertTrue(apacheHttpClient.syncInvoke(apiRequest) instanceof HttpResponse);
+        apacheHttpClient.close();
+
+        Mockito.when(closeableHttpResponse.getFirstHeader(Mockito.anyString())).thenReturn(null);
+        HttpResponse response = apacheHttpClient.syncInvoke(apiRequest);
+        Assert.assertEquals(FormatType.JSON,response.getHttpContentType());
+        Assert.assertEquals("UTF-8",response.getSysEncoding());
+    }
+
+
 }
